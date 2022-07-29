@@ -10,6 +10,7 @@
 
 ## Features
 
+
 - Display of all ongoing cases
 - Instant measure of distance between the current system and the client
 - Easy copy of the client system
