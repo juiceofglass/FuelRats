@@ -144,7 +144,7 @@ def plugin_prefs(parent: nb.Notebook, cmdr: str, is_beta: bool) -> Optional[tk.F
     nb.Label(frame, text='Jump range').grid(row=4, column=0,sticky=tk.W)
     nb.Entry(frame, textvariable=this.range_var).grid(row=4, column=1,sticky=tk.W)
 
-
+    theme.update(frame)
     return frame
 
 def prefs_changed(cmdr: str, is_beta: bool) -> None:
@@ -229,7 +229,7 @@ def draw_this_frame():
             jumps_info.grid(row=row, column=6, sticky=tk.W)
             jcall_info = tk.Button(this.frame, text = 'Call jumps', command = lambda a=rescue['id'],b=rescue['jumps']: call_jumps(a,b))
             jcall_info.grid(row=row, column=7, sticky=tk.W)
-
+    theme.update(this.frame)
 
 def plugin_app(parent: tk.Frame) -> tk.Frame:
     """
