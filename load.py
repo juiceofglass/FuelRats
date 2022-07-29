@@ -115,7 +115,15 @@ def set_prefs(parent):
 
 def plugin_prefs(parent: nb.Notebook, cmdr: str, is_beta: bool) -> Optional[tk.Frame]:
     auth_uri = 'https://fuelrats.com/authorize?response_type=code&client_id=8e2c64b6-553a-4c26-b1b7-38a4c7776d87&scope=rescues.read&redirect_uri=http%3A%2F%2Flocalhost%3A10808&state=11'
+
+
     frame = nb.Frame(parent)
+
+    HyperlinkLabel(frame, text='FuelRats plugin', background=nb.Label().cget('background'),
+                   url="https://github.com/juiceofglass/FuelRats/", underline=True).grid(row=0,column=0, columnspan=2, pady=2, sticky=tk.W)
+    HyperlinkLabel(frame, text='FuelRats Website', background=nb.Label().cget('background'),
+                   url="https://fuelrats.com", underline=True).grid(row=0,column=0, columnspan=2, pady=2, sticky=tk.W)
+
     if not this.token:
         HyperlinkLabel(frame, text='Authorize your fuelrats account', background=nb.Label().cget('background'), url=auth_uri, underline=True).grid(row=1, columnspan=2, padx=2, sticky=tk.W)
 
