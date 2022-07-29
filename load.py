@@ -84,7 +84,16 @@ def get_rescues_thread():
             job_id = res.json()['job']
             resc = create_rescue(cr,ody,plat,system,id,taken,0,job_id)
             rescues_list.append(resc)
-        time.sleep(5)
+
+        ready = False
+        while not ready:
+            time.sleep(2)
+            ready=True
+            for rescue in rescues_list:
+                resp = requests.get(f"https://www.spansh.co.uk/api/results/{rescue['job_id']}").json()
+                if not "result" in resp:
+                    ready=False
+
 
         for rescue in rescues_list:
             resp = requests.get(f"https://www.spansh.co.uk/api/results/{rescue['job_id']}").json()['result']['system_jumps']
