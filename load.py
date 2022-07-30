@@ -16,6 +16,9 @@ from config import config
 PLATFORM_OPTIONS = ["pc", 'ps', "xb"]
 
 class This:
+
+    rescues_thread: Optional[Thread]=None
+
     system:Optional[str]=config.get_str("system")
     jump_range:Optional[int]=config.get_int("jump_range")
     parent: Optional[tk.Frame] = None
@@ -47,66 +50,69 @@ def get_rescues_thread():
         "authorization": f"Bearer {this.token}"
     }
     while True:
-        if not config.get_bool("working"):
-            return 0
-        if not this.token:
-            time.sleep(20)
-            continue
-        res = requests.get("https://api.fuelrats.com/rescues?filter%5Bstatus%5D%5Bne%5D=closed&sort=-createdAt",
-                       headers=headers)
-        if not res.status_code==200:
-            time.sleep(20)
-            continue
-        rescues_list = []
-        rescues = res.json()['data']
-        new_rescues_list = []
-
-        for rescue in rescues:
-            attrs = rescue['attributes']
-            if attrs['status']!="open":
+        try:
+            if not config.get_bool("working"):
+                return 0
+            if not this.token:
+                time.sleep(10)
                 continue
-            cr = attrs['codeRed']
-            id = attrs['commandIdentifier']
-            plat = attrs['platform']
-            ody = attrs['odyssey']
-            system = attrs['system']
-            taken = False
-            for quote in attrs['quotes']:
-                if f"#{id}" in quote['message'] and "j" in quote['message']:
-                    taken = True
-            body = {
-                "efficiency": 100,
-                "range": this.jump_range,
-                "from": this.system,
-                "to": system
-            }
-            res = requests.post('https://www.spansh.co.uk/api/route',data=body)
-            job_id = res.json()['job']
-            resc = create_rescue(cr,ody,plat,system,id,taken,0,job_id)
-            rescues_list.append(resc)
+            res = requests.get("https://api.fuelrats.com/rescues?filter%5Bstatus%5D%5Bne%5D=closed&sort=-createdAt",
+                           headers=headers)
+            if not res.status_code==200:
+                time.sleep(10)
+                continue
+            rescues_list = []
+            rescues = res.json()['data']
+            new_rescues_list = []
 
-        ready = False
-        while not ready:
-            time.sleep(2)
-            ready=True
+            for rescue in rescues:
+                attrs = rescue['attributes']
+                if attrs['status']!="open":
+                    continue
+                cr = attrs['codeRed']
+                id = attrs['commandIdentifier']
+                plat = attrs['platform']
+                ody = attrs['odyssey']
+                system = attrs['system']
+                taken = False
+                for quote in attrs['quotes']:
+                    if f"#{id}" in quote['message'] and "j" in quote['message']:
+                        taken = True
+                body = {
+                    "efficiency": 100,
+                    "range": this.jump_range,
+                    "from": this.system,
+                    "to": system
+                }
+                res = requests.post('https://www.spansh.co.uk/api/route',data=body)
+                job_id = res.json()['job']
+                resc = create_rescue(cr,ody,plat,system,id,taken,0,job_id)
+                rescues_list.append(resc)
+
+            ready = False
+            while not ready:
+                time.sleep(1)
+                ready=True
+                for rescue in rescues_list:
+                    resp = requests.get(f"https://www.spansh.co.uk/api/results/{rescue['job_id']}").json()
+                    if not "result" in resp:
+                        ready=False
+
+
             for rescue in rescues_list:
-                resp = requests.get(f"https://www.spansh.co.uk/api/results/{rescue['job_id']}").json()
-                if not "result" in resp:
-                    ready=False
+                resp = requests.get(f"https://www.spansh.co.uk/api/results/{rescue['job_id']}").json()['result']['system_jumps']
+                jumps = 0
+                for jump in resp:
+                    jumps+=jump['jumps']
+                rescue['jumps']=jumps
+                rescue['job_id']=""
+                new_rescues_list.append(rescue)
 
-
-        for rescue in rescues_list:
-            resp = requests.get(f"https://www.spansh.co.uk/api/results/{rescue['job_id']}").json()['result']['system_jumps']
-            jumps = 0
-            for jump in resp:
-                jumps+=jump['jumps']
-            rescue['jumps']=jumps
-            rescue['job_id']=""
-            new_rescues_list.append(rescue)
-
-        if this.rescues['rescues']!=new_rescues_list:
-            this.rescues['rescues']=new_rescues_list
-            draw_this_frame()
+            if this.rescues['rescues']!=new_rescues_list:
+                this.rescues['rescues']=new_rescues_list
+                draw_this_frame()
+        except:
+            time.sleep(3)
 
 
 
@@ -186,7 +192,7 @@ def draw_this_frame():
     col_label = tk.Label(this.frame, text=f"Jump range: {this.jump_range}")
     col_label.grid(row=1, column=3,columnspan=2,  sticky=tk.E)
     col_label = tk.Label(this.frame, text=f"Current system: {this.system}")
-    col_label.grid(row=1, column=5,columnspan=2,  sticky=tk.E)
+    col_label.grid(row=2, column=3,columnspan=2,  sticky=tk.E)
 
     if this.token:
         col_label = tk.Label(this.frame, text="Cases:")
@@ -229,6 +235,11 @@ def draw_this_frame():
             jumps_info.grid(row=row, column=6, sticky=tk.W)
             jcall_info = tk.Button(this.frame, text = 'Call jumps', command = lambda a=rescue['id'],b=rescue['jumps']: call_jumps(a,b))
             jcall_info.grid(row=row, column=7, sticky=tk.W)
+
+    if not this.rescues_thread.is_alive():
+        this.rescues_thread = Thread(target=get_rescues_thread)
+        this.rescues_thread.start()
+
     theme.update(this.frame)
 
 def plugin_app(parent: tk.Frame) -> tk.Frame:
@@ -236,7 +247,7 @@ def plugin_app(parent: tk.Frame) -> tk.Frame:
     Create a frame for the EDMarketConnector main window
     """
     this.parent = parent  # system label in main window
-    this.parent.bind('<<RatInfoUpdate>>', draw_this_frame)
+
 
     this.frame = tk.Frame(parent)
     this.frame.focus_set()
@@ -246,7 +257,11 @@ def plugin_app(parent: tk.Frame) -> tk.Frame:
     return this.frame
 
 def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: Dict[str, Any], state: Dict[str, Any]) -> None:
-    print(entry)
+
+    if not this.rescues_thread.is_alive():
+        this.rescues_thread = Thread(target=get_rescues_thread)
+        this.rescues_thread.start()
+
     if this.system!=system:
         if system:
             this.system=system
@@ -259,7 +274,6 @@ def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: Di
         config.set("system", system)
         draw_this_frame()
 
-    this.parent.event_generate('<<RatInfoUpdate>>', when="tail")
 
 
 def start_server():
@@ -300,8 +314,8 @@ def plugin_start3(plugin_dir, *args, **kwargs) -> str:
         t1 = Thread(target=start_server)
         t1.start()
     config.set("working",True)
-    t2 = Thread(target=get_rescues_thread)
-    t2.start()
+    this.rescues_thread = Thread(target=get_rescues_thread)
+    this.rescues_thread.start()
 
 
     return "FuelRats"
